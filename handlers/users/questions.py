@@ -110,16 +110,24 @@ async def handle_get_question_state(message: Message, state: FSMContext):
     current_user = await db.users.get_by_id(user_id=message.chat.id)
     if current_user:
         from_user_question = f'Вопрос задал {current_user.fullname}'
-        if question_msg_info['text']:
+        if question_msg_info.get('text'):
             question_msg_info['text'] = from_user_question + '\n\n' + question_msg_info['text']
-        elif question_msg_info['caption']:
+        elif question_msg_info.get('caption'):
             question_msg_info['caption'] = from_user_question + '\n\n' + question_msg_info['caption']
+        if message.text:
+            question_content = message.text
+        elif message.caption:
+            question_content = 'В вопросе есть медиафайл!\n\n' + message.caption
+        else:
+            question_content = 'В вопросе есть медиафайл!'
+
         question = QuestionModel()
         question_id = str(uuid4())[:10]
         question.id = question_id
         question.date = datetime.now(timezone(timedelta(hours=3))) + timedelta(hours=3)
         question.from_user_id = current_user.id
-        question.content = question_msg_info
+        question.content = question_content
+        question.tg_info = question_msg_info
         await db.questions.insert(question=question)
 
         users = await db.users.get_all()
@@ -141,13 +149,13 @@ async def handle_get_question_state(message: Message, state: FSMContext):
     await state.clear()
 
 
-@questions_router.message(Admin(), Private(), Command('show_questions'))
+@questions_router.message(Private(), Command('show_questions'), Admin())
 async def handle_show_questions_command(message: Message, state: FSMContext):
     bot_logger.info(f'Handling command /show_questions from user {message.chat.id}')
     questions_ = await db.questions.get_all()
     if questions_:
         for question in questions_:
-            question_msg = Message(**question.content)
+            question_msg = Message(**question.tg_info)
             await question_msg.send_copy(
                 chat_id=message.chat.id,
                 reply_markup=await get_reply_answer_inline_keyboard(question_id=question.id)

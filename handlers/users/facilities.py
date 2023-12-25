@@ -5,9 +5,23 @@ facility_router = Router()
 
 
 # __states__ !DO NOT DELETE!
+class CreateFacilityStates(StatesGroup):
+    get_title = State()
+    get_city = State()
+    get_position = State()
+    get_access_range = State()
+    get_work_range = State()
 
 
 # __buttons__ !DO NOT DELETE!
+async def get_decline_reply_keyboard() -> ReplyKeyboardMarkup:
+    button_list = [
+        [KeyboardButton(text=strs.decline_btn)],
+    ]
+
+    return ReplyKeyboardMarkup(keyboard=button_list, resize_keyboard=True, one_time_keyboard=True)
+
+
 async def get_facility_info_inline_keyboard(facility_id: str, back_page: int) -> InlineKeyboardMarkup:
     button_list = [
         [InlineKeyboardButton(text='Закрепить 📌 ', callback_data=f'facility_attach_btn {facility_id}')],
@@ -82,6 +96,7 @@ async def get_choose_facility_inline_keyboard(user_id: int, page: int = 1) -> In
         [InlineKeyboardButton(text='◀️', callback_data=f'facility_prev_btn {page}'),
          InlineKeyboardButton(text='▶️', callback_data=f'facility_next_btn {page}')],
         [InlineKeyboardButton(text='🔙 Вернуться в меню', callback_data='facility_back_to_menu')],
+        [InlineKeyboardButton(text='➕ Добавить новый объект (только администраторы)', callback_data=f'facility_new_btn')],
     ]]
 
     @facility_router.callback_query(F.data.startswith('facility_facility_btn'))
@@ -94,7 +109,8 @@ async def get_choose_facility_inline_keyboard(user_id: int, page: int = 1) -> In
         if facility_:
             facility_info = strs.facility_info(
                 name=facility_.name, city=facility_.city,
-                start_time=facility_.work_start_time, end_time=facility_.work_end_time
+                start_time=facility_.work_start_time, end_time=facility_.work_end_time,
+                dist_range=facility_.access_get_range
             )
             await callback.message.edit_text(
                 text=facility_info,
@@ -102,6 +118,17 @@ async def get_choose_facility_inline_keyboard(user_id: int, page: int = 1) -> In
             )
         else:
             await callback.message.answer(text=strs.facility_search_error)
+        await callback.answer()
+
+    @facility_router.callback_query(F.data.startswith('facility_new_btn'))
+    async def handle_facility_new_btn_callback(callback: CallbackQuery, state: FSMContext):
+        bot_logger.info(f'Handling facility_new_btn facility button callback from user {callback.message.chat.id}')
+        user_ = await db.users.get_by_id(user_id=callback.message.chat.id)
+        if user_ and user_.is_admin:
+            await callback.message.answer(text=strs.facility_get_title, reply_markup=await get_decline_reply_keyboard())
+            await state.set_state(CreateFacilityStates.get_title.state)
+        else:
+            await callback.message.answer(text=strs.facility_not_admin)
         await callback.answer()
 
     @shift_router.callback_query(F.data.startswith('facility_prev_btn'))
@@ -139,6 +166,109 @@ async def get_choose_facility_inline_keyboard(user_id: int, page: int = 1) -> In
 
 
 # __chat__ !DO NOT DELETE!
+@facility_router.message(CreateFacilityStates.get_title)
+async def handle_get_title_state(message: Message, state: FSMContext):
+    bot_logger.info(f'Handling states CreateFacilityStates.get_title from user {message.chat.id}')
+    title = message.text
+    if title:
+        await message.answer(text=strs.facility_get_city)
+        await state.update_data({
+            'title': title
+        })
+        await state.set_state(CreateFacilityStates.get_city.state)
+    else:
+        await message.answer(text=strs.facility_get_title_error)
+
+
+@facility_router.message(CreateFacilityStates.get_city)
+async def handle_get_city_state(message: Message, state: FSMContext):
+    bot_logger.info(f'Handling states CreateFacilityStates.get_city from user {message.chat.id}')
+    city = message.text
+    if city:
+        await message.answer(text=strs.facility_get_geo)
+        await state.update_data({
+            'city': city
+        })
+        await state.set_state(CreateFacilityStates.get_position.state)
+    else:
+        await message.answer(text=strs.facility_get_city_error)
+
+
+@facility_router.message(CreateFacilityStates.get_position)
+async def handle_get_position_state(message: Message, state: FSMContext):
+    bot_logger.info(f'Handling states CreateFacilityStates.get_position from user {message.chat.id}')
+    import re
+    geo = message.text
+    geo_coords = message.location
+    if geo and re.match(r'^\d*.?\d*,? \d*.?\d*$', geo):
+        await message.answer(text=strs.facility_get_access_range)
+        await state.update_data({
+            'geo': geo
+        })
+        await state.set_state(CreateFacilityStates.get_access_range.state)
+    elif geo_coords:
+        await message.answer(text=strs.facility_get_access_range)
+        await state.update_data({
+            'geo': f'{geo_coords.latitude}, {geo_coords.longitude}'
+        })
+        await state.set_state(CreateFacilityStates.get_access_range.state)
+    else:
+        await message.answer(text=strs.facility_get_geo_error)
+
+
+@facility_router.message(CreateFacilityStates.get_access_range)
+async def handle_get_access_range_state(message: Message, state: FSMContext):
+    bot_logger.info(f'Handling states CreateFacilityStates.get_access_range from user {message.chat.id}')
+    range_ = message.text
+    if range_ and range_.isdigit():
+        await message.answer(text=strs.facility_get_work_range)
+        await state.update_data({
+            'access_range': range_
+        })
+        await state.set_state(CreateFacilityStates.get_work_range.state)
+    else:
+        await message.answer(text=strs.facility_get_access_range_error)
+
+
+@facility_router.message(CreateFacilityStates.get_work_range)
+async def handle_get_work_range_state(message: Message, state: FSMContext):
+    bot_logger.info(f'Handling states CreateFacilityStates.get_work_range from user {message.chat.id}')
+    import re
+    from datetime import datetime
+    from uuid import uuid4
+
+    work_range = message.text
+    match = re.match(r'(\d{1,2}:\d{2}) - (\d{1,2}:\d{2})', work_range if work_range else 'aa:aa')
+    if match:
+        start_time_str, end_time_str = match.groups()
+        start_hour, start_minute = [int(item) for item in start_time_str.split(':')]
+        end_hour, end_minute = [int(item) for item in end_time_str.split(':')]
+        if not (0 <= start_hour < 24) and not (0 <= start_minute < 60):
+            await message.answer(text=strs.facility_get_work_range_error)
+            return
+        elif not (0 <= end_hour < 24) and not (0 <= end_minute < 60):
+            await message.answer(text=strs.facility_get_work_range_error)
+            return
+        start_time_obj = datetime.strptime(start_time_str.strip(), "%H:%M").time()
+        end_time_obj = datetime.strptime(end_time_str.strip(), "%H:%M").time()
+
+        data = await state.get_data()
+        facility_id = str(uuid4())[:10]
+        facility = FacilityModel()
+        facility.id = facility_id
+        facility.name = data.get('title')
+        facility.city = data.get('city').lower().capitalize()
+        facility.geo = data.get('geo')
+        facility.access_get_range = data.get('access_range')
+        facility.work_start_time = start_time_obj,
+        facility.work_end_time = end_time_obj
+        await db.facilities.insert(facility=facility)
+        await message.answer(text=strs.facility_created, reply_markup=ReplyKeyboardRemove())
+        await state.clear()
+    else:
+        await message.answer(text=strs.facility_get_work_range_error)
+
+
 @facility_router.message(Private(), Command('facilities'))
 async def handle_my_facilities_command(message: Message, state: FSMContext):
     bot_logger.info(f'Handling command /facilities from user {message.chat.id}')
@@ -148,7 +278,8 @@ async def handle_my_facilities_command(message: Message, state: FSMContext):
         if facility:
             facility_info = strs.facility_info(
                 name=facility.name, city=facility.city.capitalize(),
-                start_time=facility.work_start_time, end_time=facility.work_end_time
+                start_time=facility.work_start_time, end_time=facility.work_end_time,
+                dist_range=facility.access_get_range
             )
             await message.answer(
                 text=facility_info,

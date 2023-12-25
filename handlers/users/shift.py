@@ -45,7 +45,7 @@ async def handle_start_shift_command(message: Message, state: FSMContext):
         if user.current_facility_id:
             facility = await db.facilities.get_by_id(facility_id=user.current_facility_id)
             if facility:
-                await message.answer(text=strs.shift_ask_geo, reply_markup=await get_geo_reply_keyboard())
+                await message.answer(text=strs.shift_ask_geo(dist_range=facility.access_get_range), reply_markup=await get_geo_reply_keyboard())
                 await state.set_state(StartShiftStates.get_geo.state)
             else:
                 await message.answer(text=strs.shift_no_such_facility)
@@ -73,7 +73,7 @@ async def handle_get_geo_state(message: Message, state: FSMContext):
                 facility_pos = tuple(el for el in facility.geo.replace(',', '').split())
                 dist = distance.geodesic(curr_pos, facility_pos).meters
                 bot_logger.info(f'Distance between user {user.fullname} and facility {facility.name} is {dist}')
-                if dist < 60:
+                if dist <= facility.access_get_range:
                     await state.update_data({
                         'latitude': location.latitude,
                         'longitude': location.longitude,

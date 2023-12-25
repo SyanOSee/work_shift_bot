@@ -19,14 +19,14 @@ async def get_decline_reply_keyboard() -> ReplyKeyboardMarkup:
 
 
 # __chat__ !DO NOT DELETE!
-@panel_router.message(Admin(), Private(), Command('panel'))
+@panel_router.message(Private(), Command('panel'), Admin())
 async def handle_get_admin_panel_command(message: Message, state: FSMContext):
     bot_logger.info(f'Handling /admin_panel command from user {message.from_user.id}')
     await message.answer(text=strs.panel_ask_info_msg, reply_markup=await get_decline_reply_keyboard())
     await state.set_state(PanelInfoStates.data_collecting.state)
 
 
-@panel_router.message(Admin(), Private(), PanelInfoStates.data_collecting)
+@panel_router.message(Private(), PanelInfoStates.data_collecting, Admin())
 async def handle_panel_info_collecting_state(message: Message, state: FSMContext):
     bot_logger.info(f'Handling panel info collecting state from user {message.from_user.id}')
     info = message.text

@@ -5,6 +5,7 @@ from aiogram.enums.chat_type import ChatType
 
 # Project
 from database import db
+from resources import strs
 
 
 class Admin(BaseFilter):
@@ -12,6 +13,7 @@ class Admin(BaseFilter):
         user = await db.users.get_by_id(user_id=message.from_user.id)
         if user and user.is_admin:
             return True
+        await message.answer(text=strs.not_admin)
         return False
 
 

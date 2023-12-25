@@ -77,7 +77,7 @@ async def start_panel():
     from uvicorn import Config, Server
 
     config = Config(
-        app=app, host=cf.panel_server['host'],
+        app=app, host='0.0.0.0',
         port=int(cf.panel_server['port']))
 
     server = Server(config=config)

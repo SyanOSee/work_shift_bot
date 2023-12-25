@@ -197,7 +197,8 @@ class Database:
                 session.query(QuestionModel).filter_by(id=question.id).update({
                     'from_user_id': question.from_user_id,
                     'date': question.date,
-                    'content': question.content
+                    'content': question.content,
+                    'tg_info': question.tg_info
                 })
                 database_logger.warning(f'QuestionModel {question.id} is updated!')
                 session.commit()
@@ -377,7 +378,7 @@ class Database:
 
         async def get_all_by_city(self, city: str) -> list[FacilityModel] | None:
             with self.session_maker() as session:
-                data = session.query(FacilityModel).filter_by(city=city).all()
+                data = session.query(FacilityModel).filter_by(city=city.lower().capitalize()).all()
                 if data:
                     database_logger.info(f'Fetched all FacilityModels of {city}')
                     return data
@@ -410,6 +411,7 @@ class Database:
                     'name': facility.name,
                     'geo': facility.geo,
                     'city': facility.city,
+                    'access_get_range': facility.distance_facility_user,
                     'work_start_time': facility.work_start_time,
                     'work_end_time': facility.work_end_time
                 })

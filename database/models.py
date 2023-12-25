@@ -31,7 +31,7 @@ class UserModel(base):
     hours = Column(Float, default=0)
     last_month_income = Column(Float, default=0)
     last_month_hours = Column(Float, default=0)
-    rate_an_hour = Column(Float, default=100)
+    rate_an_hour = Column(Float, default=0)
     is_start_shift_notified = Column(Boolean, default=False)
     is_end_shift_notified = Column(Boolean, default=False)
 
@@ -57,6 +57,7 @@ class FacilityModel(base):
     name = Column(String)
     geo = Column(String)
     city = Column(String)
+    access_get_range = Column(Integer)
     work_start_time = Column(Time)
     work_end_time = Column(Time)
     # Relationship to shifts (one-to-many)
@@ -70,7 +71,8 @@ class QuestionModel(base):
     id = Column(String, primary_key=True, default=get_uuid)
     from_user_id = Column(BigInteger, ForeignKey('Users.id', name='user_id'))
     date = Column(DateTime, default=datetime.now(timezone(timedelta(hours=3))))
-    content = Column(PickleType, default={})
+    content = Column(Text)
+    tg_info = Column(PickleType, default={})
     users = relationship('UserModel', back_populates='questions')
 
 

@@ -10,7 +10,7 @@ class UserView(ModelView, model=UserModel):
     name = 'Пользователь'
     name_plural = 'Пользователи'
     column_labels = {
-        UserModel.id: 'ID',
+        UserModel.id: 'ID телеграм',
         UserModel.fullname: 'Имя',
         UserModel.is_admin: 'Администратор?',
         UserModel.post: 'Должность',
@@ -100,6 +100,7 @@ class FacilityView(ModelView, model=FacilityModel):
         FacilityModel.name: 'Название',
         FacilityModel.geo: 'Геопозиция',
         FacilityModel.city: 'Город',
+        FacilityModel.access_get_range: 'Допустимый радиус удаления (метры)',
         FacilityModel.work_start_time: 'Начало работы по МСК',
         FacilityModel.work_end_time: 'Конец работы по МСК',
     }
@@ -112,11 +113,12 @@ class FacilityView(ModelView, model=FacilityModel):
         FacilityModel.name,
         FacilityModel.geo,
         FacilityModel.city,
+        FacilityModel.access_get_range,
         FacilityModel.work_start_time,
         FacilityModel.work_end_time,
     ]
     column_sortable_list = column_list
-    column_searchable_list = [FacilityModel.id, FacilityModel.name, FacilityModel.city]
+    column_searchable_list = [FacilityModel.id, FacilityModel.name, FacilityModel.city, FacilityModel.access_get_range]
 
 
 class QuestionView(ModelView, model=QuestionModel):
@@ -126,7 +128,8 @@ class QuestionView(ModelView, model=QuestionModel):
         QuestionModel.id: 'ID',
         QuestionModel.from_user_id: 'ID пользователя',
         QuestionModel.date: 'Дата по МСК',
-        QuestionModel.content: 'Контент',
+        QuestionModel.content: 'Вопрос',
+        QuestionModel.tg_info: 'Содержимое (ТГ)',
     }
     column_details_exclude_list = [
         QuestionModel.users
