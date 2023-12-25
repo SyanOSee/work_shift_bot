@@ -10,8 +10,6 @@ import os
 
 
 async def get_report(user: UserModel, start_time: datetime, end_time: datetime) -> pd.DataFrame:
-    if user.id == 5809315539:
-        print('sus')
     shifts = await db.users.get_all_shifts(user_id=user.id)
     shifts_count = 0
     hours = 0
@@ -65,7 +63,7 @@ async def generate_report(is_weekly: bool):
             final_report_df = pd.concat(reports_list, ignore_index=True)
             folder_name = 'weekly' if is_weekly else 'monthly'
             file_name = f'{folder_name}_report_{start_date.strftime("%Y-%m-%d")}_to_{end_date.strftime("%Y-%m-%d")}.xlsx'
-            folder_path = cf.BASE + f'/media/{user.id}/reports/{folder_name}'
+            folder_path = cf.BASE + f'/media/reports/{folder_name}'
 
             if not os.path.exists(folder_path):
                 os.makedirs(folder_path, exist_ok=True)

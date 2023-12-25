@@ -22,9 +22,9 @@ async def file_handler(request):
 
 
 async def zip_reports(user_id: int, report_type: str) -> str:
-    directory_path = os.path.join(cf.BASE, f'media/{user_id}/reports/{report_type}/*.xlsx')
+    directory_path = os.path.join(cf.BASE, f'media/reports/{report_type}/*.xlsx')
     csv_files = glob(directory_path)
-    zip_file_path = os.path.join(cf.BASE, f'media/{user_id}/reports/{report_type}_reports.zip')
+    zip_file_path = os.path.join(cf.BASE, f'media/reports/{report_type}_reports.zip')
     with zipfile.ZipFile(zip_file_path, 'w') as zipf:
         for csv_file in csv_files:
             zipf.write(csv_file, os.path.basename(csv_file))

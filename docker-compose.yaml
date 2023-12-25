@@ -10,8 +10,8 @@ services:
       - POSTGRES_USER=${DATABASE_USER}
       - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
     restart: always
-#    volumes:
-#      - shift_work_postgres:/var/lib/postgresql/shift_work_postgres
+    volumes:
+      - shift_work_postgres:/var/lib/postgresql/shift_work_postgres
 
   shift_work_bot:
       build: .
@@ -25,6 +25,6 @@ services:
       links:
         - shift_work_postgres
 
-#volumes:
-#  shift_work_postgres:
-#    external: true
+volumes:
+  shift_work_postgres:
+    external: true
