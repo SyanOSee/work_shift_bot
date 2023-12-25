@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  shift_work_postgres:
+    container_name: shift_work_postgres
+    image: postgres:alpine3.18
+    ports:
+      - "5432:${DATABASE_PORT}"
+    environment:
+      - POSTGRES_USER=${DATABASE_USER}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
+    restart: always
+#    volumes:
+#      - shift_work_postgres:/var/lib/postgresql/shift_work_postgres
+
+  shift_work_bot:
+      build: .
+      container_name: shift_work_bot
+      restart: always
+      ports:
+        - "8081:${MEDIA_SERVER_PORT}"
+        - "8082:${PANEL_SERVER_PORT}"
+      depends_on:
+        - shift_work_postgres
+      links:
+        - shift_work_postgres
+
+#volumes:
+#  shift_work_postgres:
+#    external: true
