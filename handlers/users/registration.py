@@ -100,7 +100,7 @@ async def handle_get_age_state(message: Message, state: FSMContext):
         age = int(age)
 
         if age <= 0 or age >= 100:
-            await message.answer(text=strs.registration_ask_phone)
+            await message.answer(text=strs.registration_age_error)
             return
 
         await state.update_data({'age': age})
@@ -141,7 +141,7 @@ async def handle_get_photo_state(message: Message, state: FSMContext):
         destination = f'{folder_path}/profile.png'
         is_successfully = await download_image(image_url=url, destination=destination)
         if is_successfully:
-            url = f'http://{cf.media_server["host"]}:{cf.media_server["port"]}/get/{destination}'
+            url = f'http://{cf.panel_server["host"]}:{cf.panel_server["port"]}/get/{destination}'
 
         data = await state.get_data()
         user = UserModel()

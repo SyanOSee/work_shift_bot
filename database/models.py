@@ -1,4 +1,9 @@
-from . import *
+# Third-party
+from sqlalchemy import *
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.types import PickleType
+from sqlalchemy.orm import relationship
+
 
 # Standard
 from uuid import uuid4
@@ -24,8 +29,6 @@ class UserModel(base):
     photo = Column(String)
     current_facility_id = Column(String, default=None)
     shifts = relationship('ShiftModel', back_populates='user')
-    questions = relationship('QuestionModel', back_populates='users')
-    reports = relationship('ReportModel', back_populates='users')
     income = Column(Float, default=0)
     hours = Column(Float, default=0)
     last_month_income = Column(Float, default=0)
@@ -46,7 +49,7 @@ class ShiftModel(base):
     user_geo = Column(String)
     distance_facility_user = Column(Integer)
     user = relationship('UserModel', back_populates='shifts')
-    facility_id = Column(String)
+    facility_id = Column(String, ForeignKey('Facilities.id', name='facility_id'))
 
 
 class FacilityModel(base):
@@ -63,11 +66,13 @@ class FacilityModel(base):
 class QuestionModel(base):
     __tablename__ = 'Questions'
     id = Column(String, primary_key=True, default=get_uuid)
-    from_user_id = Column(BigInteger, ForeignKey('Users.id', name='user_id'))
+    user_name = Column(String)
+    from_user_id = Column(BigInteger)
+    is_closed = Column(Boolean, default=False)
     date = Column(DateTime, default=datetime.now(timezone(timedelta(hours=3))))
+    close_date = Column(DateTime, default=None)
     content = Column(Text)
     tg_info = Column(PickleType, default={})
-    users = relationship('UserModel', back_populates='questions')
 
 
 class ReportModel(base):
@@ -77,7 +82,6 @@ class ReportModel(base):
     user_id = Column(BigInteger, ForeignKey('Users.id', name='user_id'))
     user_name = Column(String)
     date_range = Column(String)
-    users = relationship('UserModel', back_populates='reports')
     file = Column(String)
 
 

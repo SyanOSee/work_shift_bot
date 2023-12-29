@@ -17,15 +17,10 @@ bot = {
     'token': os.getenv('BOT_TOKEN'),
 }
 
-media_server = {
-    'host': os.getenv('MEDIA_SERVER_HOST'),
-    'port': os.getenv('MEDIA_SERVER_PORT')
-}
-
 panel_server = {
     'host': os.getenv('PANEL_SERVER_HOST'),
     'port': os.getenv('PANEL_SERVER_PORT'),
-    'url': os.getenv('PANEL_SERVER_HOST') + ':' + os.getenv('PANEL_SERVER_PORT'),
+    'url': 'http://' + os.getenv('PANEL_SERVER_HOST') + ':' + os.getenv('PANEL_SERVER_PORT'),
     'secret_key': os.getenv('PANEL_SECRET_KEY')
 }
 

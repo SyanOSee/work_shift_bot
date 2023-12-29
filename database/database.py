@@ -1,4 +1,18 @@
-from . import *
+# Third-party
+import sqlalchemy.exc
+from sqlalchemy import *
+from sqlalchemy.orm import sessionmaker
+
+# Standard
+from time import sleep
+import traceback
+from enum import Enum
+
+# Project
+import config as cf
+from logger import database_logger
+from .models import base, UserModel, ShiftModel, FacilityModel
+from .models import QuestionModel, ReportModel, LogModel
 
 
 # Enum for different types of database connections
@@ -163,6 +177,26 @@ class Database:
                     database_logger.info('No QuestionModels in a database')
                     return None
 
+        async def get_all_opened(self):
+            with self.session_maker() as session:
+                data = session.query(QuestionModel).filter_by(is_closed=False).all()
+                if data:
+                    database_logger.info('Fetched all opened questions')
+                    return data
+                else:
+                    database_logger.info('No opened questions in a database')
+                    return None
+
+        async def get_all_closed(self):
+            with self.session_maker() as session:
+                data = session.query(QuestionModel).filter_by(is_closed=True).all()
+                if data:
+                    database_logger.info('Fetched all closed questions')
+                    return data
+                else:
+                    database_logger.info('No closed questions in a database')
+                    return None
+
         async def get_last_user_question(self, user_id: int) -> QuestionModel | None:
             with self.session_maker() as session:
                 data = session.query(QuestionModel).filter_by(from_user_id=user_id).all()
@@ -195,8 +229,11 @@ class Database:
         async def update(self, question: QuestionModel):
             with self.session_maker() as session:
                 session.query(QuestionModel).filter_by(id=question.id).update({
+                    'user_name': question.user_name,
                     'from_user_id': question.from_user_id,
+                    'is_closed': question.is_closed,
                     'date': question.date,
+                    'close_date': question.close_date,
                     'content': question.content,
                     'tg_info': question.tg_info
                 })
@@ -233,6 +270,16 @@ class Database:
                     return data
                 else:
                     database_logger.info('No unemployed users in a database')
+                    return None
+
+        async def get_all_with_facility_id(self, facility_id: str) -> list[UserModel] | None:
+            with self.session_maker() as session:
+                data = session.query(UserModel).filter_by(current_facility_id=facility_id).all()
+                if data:
+                    database_logger.info(f'Fetched all workers with current_facility_id {facility_id}')
+                    return data
+                else:
+                    database_logger.info(f'No workers on facility with id {facility_id}')
                     return None
 
         async def get_all_admins(self) -> list[UserModel] | None:
@@ -438,6 +485,15 @@ class Database:
                 database_logger.warning(f'FacilityModel {facility.id} is updated!')
                 session.commit()
                 session.close()
+
+
+async def connect_events():
+    database_logger.info('Listening events!')
+    from sqlalchemy import event
+    from .events import track_facility_id_change, track_admin_change, track_post_change
+    event.listen(UserModel.current_facility_id, 'set', track_facility_id_change)
+    event.listen(UserModel.is_admin, 'set', track_admin_change)
+    event.listen(UserModel.post, 'set', track_post_change)
 
 
 db = Database(type_=Type.POSTGRESQL)

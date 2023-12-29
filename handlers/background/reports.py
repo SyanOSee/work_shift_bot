@@ -72,7 +72,7 @@ async def generate_report(is_weekly: bool):
             final_report_df.to_excel(csv_file_path, index=False, header=True)
 
             report = ReportModel()
-            url = f'http://{cf.media_server["host"]}:{cf.media_server["port"]}/get/{csv_file_path}'
+            url = f'http://{cf.panel_server["host"]}:{cf.panel_server["port"]}/get/{csv_file_path}'
             report.file = url
             report.date_range = f'{start_date.strftime("%Y-%m-%d")} - {end_date.strftime("%Y-%m-%d")}'
             await db.reports.insert(report=report)
@@ -82,3 +82,28 @@ async def generate_report(is_weekly: bool):
                 user.income = 0
                 user.hours = 0
                 await db.users.update(user=user)
+
+
+async def generate_users_report():
+    # You might need to make a DB call to retrieve the actual data
+    # users = await db.users.get_all()
+    users = await db.users.get_all()  # Replace this with your actual DB call
+    if users:
+        report_data = []
+        for user in users:
+            user_report = {
+                'Сотрудник': user['fullname'],
+                'Количество смен': user['shifts_count'],
+                'Количество часов': user['total_hours'],
+                'Ставка в час, руб': user['rate_an_hour'],
+                'Итоговая сумма, руб': user['total_hours'] * user['rate_an_hour'],
+                'Должность': user['duty'],
+                'Объект': user['site'],
+                'Номер для связи': user['contact_number'],
+                'Замечание': user['remarks']
+            }
+            report_data.append(user_report)
+
+        path = cf.BASE + f'/media/reports/workers.xlsx'
+        report_df = pd.DataFrame(report_data)
+        report_df.to_excel(path, index=False, header=True)

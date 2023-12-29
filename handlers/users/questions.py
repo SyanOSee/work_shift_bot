@@ -33,6 +33,8 @@ async def get_reply_answer_inline_keyboard(question_id: str) -> InlineKeyboardMa
         @questions_router.message(ReplyStates.get_reply)
         async def handle_get_reply_state(message: Message, state: FSMContext):
             bot_logger.info(f'Handling ReplyStates get_reply state from user {message.chat.id}')
+            from datetime import datetime, timezone, timedelta
+
             question_id_ = (await state.get_data())['question_id']
             reply_info = message.model_dump()
             if reply_info['text']:
@@ -44,8 +46,13 @@ async def get_reply_answer_inline_keyboard(question_id: str) -> InlineKeyboardMa
                 new_msg = Message(**reply_info)
                 await new_msg.send_copy(
                     chat_id=question.from_user_id,
+                    parse_mode='html'
                 ).as_(message.bot)
-                await db.questions.delete(question=question)
+
+                question.is_closed = True
+                question.close_date = datetime.now(timezone(timedelta(hours=3))) + timedelta(hours=3)
+                await db.questions.update(question=question)
+
                 await message.answer(text=strs.question_successfully_replied, reply_markup=ReplyKeyboardRemove())
             else:
                 await message.answer(text=strs.question_another_admin_replied, reply_markup=ReplyKeyboardRemove())
@@ -61,11 +68,16 @@ async def get_reply_answer_inline_keyboard(question_id: str) -> InlineKeyboardMa
     @questions_router.callback_query(F.data.startswith('decline_btn'))
     async def handle_decline_button_callback(callback: CallbackQuery, state: FSMContext):
         bot_logger.info(f'Handling reply_answer decline button callback from user {callback.message.chat.id}')
+        from datetime import datetime, timezone, timedelta
+
         data = callback.data.split()
         question_id_ = data[1]
         question = await db.questions.get_by_id(question_id=question_id_)
         if question:
-            await db.questions.delete(question=question)
+            question.is_closed = True
+            question.close_date = datetime.now(timezone(timedelta(hours=3))) + timedelta(hours=3)
+            await db.questions.update(question=question)
+
             await callback.bot.send_message(chat_id=question.from_user_id, text=strs.question_declined)
             await callback.message.answer(text=strs.question_successfully_declined)
         else:
@@ -124,8 +136,9 @@ async def handle_get_question_state(message: Message, state: FSMContext):
         question = QuestionModel()
         question_id = str(uuid4())[:10]
         question.id = question_id
-        question.date = datetime.now(timezone(timedelta(hours=3))) + timedelta(hours=3)
         question.from_user_id = current_user.id
+        question.user_name = current_user.fullname,
+        question.date = datetime.now(timezone(timedelta(hours=3))) + timedelta(hours=3)
         question.content = question_content
         question.tg_info = question_msg_info
         await db.questions.insert(question=question)
@@ -152,9 +165,9 @@ async def handle_get_question_state(message: Message, state: FSMContext):
 @questions_router.message(Private(), Command('show_questions'), Admin())
 async def handle_show_questions_command(message: Message, state: FSMContext):
     bot_logger.info(f'Handling command /show_questions from user {message.chat.id}')
-    questions_ = await db.questions.get_all()
-    if questions_:
-        for question in questions_:
+    opened_questions = await db.questions.get_all_opened()
+    if opened_questions:
+        for question in opened_questions:
             question_msg = Message(**question.tg_info)
             await question_msg.send_copy(
                 chat_id=message.chat.id,

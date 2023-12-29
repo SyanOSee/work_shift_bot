@@ -139,7 +139,7 @@ async def handle_get_photo_state(message: Message, state: FSMContext):
                 destination = f'{folder_path}/{facility.id}.png'
                 is_successfully = await download_image(image_url=url, destination=destination)
                 if is_successfully:
-                    url = f'http://{cf.media_server["host"]}:{cf.media_server["port"]}/get/{destination}'
+                    url = f'http://{cf.panel_server["host"]}:{cf.panel_server["port"]}/get/{destination}'
 
                     data = await state.get_data()
                     latitude, longitude = data['latitude'], data['longitude']

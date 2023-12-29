@@ -1,6 +1,7 @@
 /_generator
 /media
 /data
+/database/notifications.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

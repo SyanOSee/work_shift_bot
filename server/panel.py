@@ -112,9 +112,15 @@ async def monthly_reports_handler():
     return FileResponse(zip_file_path)
 
 
+@app.get("/reports/users")
+async def monthly_reports_handler():
+    zip_file_path = await zip_reports('users')
+    return FileResponse(zip_file_path)
+
+
 @app.on_event("startup")
 async def start_server():
-    server_logger.info(f'Server started at http://{cf.media_server["host"]}:{cf.media_server["port"]}')
+    server_logger.info(f'Server started at http://{cf.panel_server["host"]}:{cf.panel_server["port"]}')
 
 
 async def start_panel():

@@ -69,7 +69,7 @@ async def get_change_personal_data_inline_keyboard() -> InlineKeyboardMarkup:
             if city:
                 user = await db.users.get_by_id(user_id=message.from_user.id)
                 if user:
-                    user.city = city
+                    user.city = city.lower().capitalize()
                     await db.users.update(user=user)
                     await message.answer(text=strs.data_update_city_changed, reply_markup=ReplyKeyboardRemove())
                 await state.clear()
@@ -153,7 +153,7 @@ async def get_change_personal_data_inline_keyboard() -> InlineKeyboardMarkup:
                 destination = f'{folder_path}/profile.png'
                 is_successfully = await download_image(image_url=url, destination=destination)
                 if is_successfully:
-                    url = f'http://{cf.media_server["host"]}:{cf.media_server["port"]}/get/{destination}'
+                    url = f'http://{cf.panel_server["host"]}:{cf.panel_server["port"]}/get/{destination}'
 
                 user = await db.users.get_by_id(user_id=message.from_user.id)
                 if user:

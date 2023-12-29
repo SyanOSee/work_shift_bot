@@ -89,10 +89,13 @@ async def handle_unemployed_command(message: Message, state: FSMContext):
     if unemployed:
         handled = 0
         for user in unemployed:
+            facility = await db.facilities.get_by_id(facility_id=user.current_facility_id)
             if not user.is_admin:
-                user_info = strs.registration_new_user(
+                user_info = strs.data_update_user_info(
                     fullname=user.fullname, post=user.post, city=user.city,
-                    age=user.age, phone=user.phone
+                    age=user.age, phone=user.phone, income=user.income,
+                    hours=user.hours, rate_an_hour=user.rate_an_hour,
+                    facility_name=facility.name if facility else 'Отсутствует'
                 )
                 from .registration import get_attach_facility_keyboard
                 await message.answer_photo(

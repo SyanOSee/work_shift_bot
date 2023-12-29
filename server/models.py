@@ -29,7 +29,6 @@ class UserView(ModelView, model=UserModel):
     }
     column_details_exclude_list = [
         UserModel.shifts,
-        UserModel.questions, UserModel.reports
     ]
     column_list = [
         UserModel.id,
@@ -121,22 +120,25 @@ class QuestionView(ModelView, model=QuestionModel):
     name_plural = 'Вопросы'
     column_labels = {
         QuestionModel.id: 'ID',
+        QuestionModel.user_name: 'Кто задал вопрос?',
         QuestionModel.from_user_id: 'ID пользователя',
-        QuestionModel.date: 'Дата по МСК',
+        QuestionModel.is_closed: 'Ответили ли?',
+        QuestionModel.date: 'Время появления по МСК',
+        QuestionModel.close_date: 'Время закрытия по МСК',
         QuestionModel.content: 'Вопрос',
         QuestionModel.tg_info: 'Содержимое (ТГ)',
     }
-    column_details_exclude_list = [
-        QuestionModel.users
-    ]
     column_list = [
         QuestionModel.id,
+        QuestionModel.user_name,
         QuestionModel.from_user_id,
+        QuestionModel.is_closed,
         QuestionModel.date,
+        QuestionModel.close_date,
         QuestionModel.content,
     ]
     column_sortable_list = column_list
-    column_searchable_list = [QuestionModel.id, QuestionModel.from_user_id]
+    column_searchable_list = [QuestionModel.id, QuestionModel.user_name, QuestionModel.date, QuestionModel.close_date, QuestionModel.from_user_id]
 
 
 class ReportView(ModelView, model=ReportModel):
@@ -150,9 +152,6 @@ class ReportView(ModelView, model=ReportModel):
         ReportModel.date_range: 'Диапазон дат',
         ReportModel.file: 'Файл',
     }
-    column_details_exclude_list = [
-        ReportModel.users
-    ]
     column_list = [
         ReportModel.id,
         ReportModel.is_monthly,
