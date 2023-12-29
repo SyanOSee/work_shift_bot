@@ -56,10 +56,6 @@ async def get_menu_inline_keyboard() -> InlineKeyboardMarkup:
 
 
 # __chat__ !DO NOT DELETE!
-# @general_router.error()
-# async def handle_error(event: ErrorEvent):
-#     logger.error(f'Critical error caused by {event.exception}')
-
 @general_router.message(Private(), Command('start'))
 async def handle_start_command(message: Message, state: FSMContext):
     bot_logger.info(f'Handling command /start from user {message.from_user.id}')
@@ -70,8 +66,8 @@ async def handle_start_command(message: Message, state: FSMContext):
         return
     else:
         await message.answer(text=strs.registration_started)
-        from .registration import RegistrationStates
-        await state.set_state(RegistrationStates.get_fullname.state)
+        from .registration import handle_registration_command
+        await handle_registration_command(message=message, state=state)
 
 
 @general_router.message(Private(), Command('menu'))
@@ -84,3 +80,31 @@ async def handle_menu_command(message: Message, state: FSMContext):
 async def handle_help_command(message: Message, state: FSMContext):
     bot_logger.info(f'Handling command /help from user {message.from_user.id}')
     await message.answer(text=strs.help)
+
+
+@general_router.message(Private(), Command('unemployed'), Admin())
+async def handle_unemployed_command(message: Message, state: FSMContext):
+    bot_logger.info(f'Handling command /unemployed command from user {message.chat.id}')
+    unemployed = await db.users.get_all_unemployed()
+    if unemployed:
+        handled = 0
+        for user in unemployed:
+            if not user.is_admin:
+                user_info = strs.registration_new_user(
+                    fullname=user.fullname, post=user.post, city=user.city,
+                    age=user.age, phone=user.phone
+                )
+                from .registration import get_attach_facility_keyboard
+                await message.answer_photo(
+                    photo=FSInputFile(path=cf.BASE + f'/media/{user.id}/images/profile.png'),
+                    caption=user_info,
+                    reply_markup=await get_attach_facility_keyboard(
+                        attach_user_id=user.id,
+                        city=user.city
+                    )
+                )
+                handled += 1
+        if handled == 0:
+            await message.answer(text=strs.no_unemployed)
+    else:
+        await message.answer(text=strs.no_unemployed)

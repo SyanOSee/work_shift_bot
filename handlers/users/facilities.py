@@ -22,11 +22,39 @@ async def get_decline_reply_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(keyboard=button_list, resize_keyboard=True, one_time_keyboard=True)
 
 
-async def get_facility_info_inline_keyboard(facility_id: str, back_page: int) -> InlineKeyboardMarkup:
+async def get_facility_location(facility_id: str) -> InlineKeyboardMarkup:
     button_list = [
-        [InlineKeyboardButton(text='Закрепить 📌 ', callback_data=f'facility_attach_btn {facility_id}')],
+        [InlineKeyboardButton(text='Местоположение 🗺️', callback_data=f'facil_get_location_btn {facility_id}')],
+    ]
+
+    @facility_router.callback_query(F.data.startswith('facil_get_location_btn'))
+    async def handle_location_button_callback(callback: CallbackQuery, state: FSMContext):
+        bot_logger.info(f'Handling facility_info location button callback from user {callback.message.chat.id}')
+        data = callback.data.split()
+        facility_id_ = data[1]
+        facility = await db.facilities.get_by_id(facility_id=facility_id_)
+        if facility:
+            latitude, longitude = facility.geo.replace(',', '').split()
+            try:
+                await callback.bot.send_location(
+                    chat_id=callback.message.chat.id,
+                    latitude=float(latitude),
+                    longitude=float(longitude)
+                )
+            except Exception as e:
+                bot_logger.error(e)
+                bot_logger.warning('Can not send location to user!')
+        await callback.answer()
+
+    return InlineKeyboardMarkup(inline_keyboard=button_list)
+
+
+async def get_facility_info_inline_keyboard(attach_to: int, facility_id: str, back_page: int) -> InlineKeyboardMarkup:
+    button_list = [
+        [InlineKeyboardButton(text='Закрепить 📌 ', callback_data=f'facility_attach_btn {attach_to} {facility_id}')],
+        [InlineKeyboardButton(text='Открепить ❌ ', callback_data=f'facility_no_attach_btn {attach_to}')],
         [InlineKeyboardButton(text='Местоположение 🗺️', callback_data=f'facility_location_btn {facility_id}')],
-        [InlineKeyboardButton(text='🔙 Вернуться к списку объектов', callback_data='facility_back_btn')]
+        [InlineKeyboardButton(text='🔙 Вернуться к списку объектов', callback_data=f'facility_back_btn {attach_to}')]
     ]
 
     @facility_router.callback_query(F.data.startswith('facility_attach_btn'))
@@ -37,22 +65,58 @@ async def get_facility_info_inline_keyboard(facility_id: str, back_page: int) ->
             return
 
         data = callback.data.split()
-        facility_id_ = data[1]
-        user = await db.users.get_by_id(user_id=callback.message.chat.id)
+        attach_to_ = int(data[1])
+        facility_id_ = data[2]
+        user = await db.users.get_by_id(user_id=attach_to_)
         user.current_facility_id = facility_id_
         await db.users.update(user=user)
         await callback.message.edit_text(
             text=callback.message.text + '\n\n<b>Вы закрепили данный объект!</b>',
             reply_markup=callback.message.reply_markup
         )
+        await callback.bot.send_message(
+            chat_id=attach_to_,
+            text=strs.facility_choosed_by_admin
+        )
+        await callback.answer()
+
+    @facility_router.callback_query(F.data.startswith('facility_no_attach_btn'))
+    async def handle_attach_button_callback(callback: CallbackQuery, state: FSMContext):
+        bot_logger.info(f'Handling facility_info attach button callback from user {callback.message.chat.id}')
+        if 'Вы закрепили данный объект!' not in callback.message.text:
+            await callback.answer()
+            return
+
+        data = callback.data.split()
+        attach_to_ = int(data[1])
+        user = await db.users.get_by_id(user_id=attach_to_)
+        user.current_facility_id = None
+        await db.users.update(user=user)
+        await callback.message.edit_text(
+            text='\n\n'.join(callback.message.text.split('\n\n')[:-1]),
+            reply_markup=callback.message.reply_markup
+        )
+
+        await callback.bot.send_message(
+            chat_id=attach_to_,
+            text=strs.facility_unchoosed_by_admin
+        )
+
         await callback.answer()
 
     @facility_router.callback_query(F.data.startswith('facility_back_btn'))
     async def handle_back_button_callback(callback: CallbackQuery, state: FSMContext):
         bot_logger.info(f'Handling facility_info back button callback from user {callback.message.chat.id}')
+        data = callback.data.split()
+        attach_to_ = int(data[1])
+        user = await db.users.get_by_id(user_id=attach_to_)
         await callback.message.edit_text(
             text=strs.facility_choose_available,
-            reply_markup=await get_choose_facility_inline_keyboard(user_id=callback.message.chat.id, page=back_page)
+            reply_markup=await get_choose_facility_inline_keyboard(
+                attach_to=attach_to_,
+                city=user.city,
+                page=back_page
+            )
         )
         await callback.answer()
 
@@ -78,33 +142,35 @@ async def get_facility_info_inline_keyboard(facility_id: str, back_page: int) ->
     return InlineKeyboardMarkup(inline_keyboard=button_list)
 
 
-async def get_choose_facility_inline_keyboard(user_id: int, page: int = 1) -> InlineKeyboardMarkup:
+async def get_choose_facility_inline_keyboard(attach_to: int, city: str = 'Москва',
+                                              page: int = 1) -> InlineKeyboardMarkup:
     batch = 3
 
-    user = await db.users.get_by_id(user_id=user_id)
-    facilities_ = await db.facilities.get_all_by_city(city=user.city.capitalize() if user else 'Москва')
-
+    facilities_ = await db.facilities.get_all_by_city(city=city.capitalize())
     buttons = []
     for i in range(batch * (page - 1), batch * (page - 1) + batch):
         if not facilities_ or i >= len(facilities_):
             break
         facility = facilities_[i]
         buttons.append(
-            [InlineKeyboardButton(text=facility.name, callback_data=f'facility_facility_btn {facility.id} {page}')])
+            [InlineKeyboardButton(text=facility.name,
+                                  callback_data=f'facility_facility_btn {attach_to} {facility.id} {page}')])
 
     [buttons.append(button) for button in [
-        [InlineKeyboardButton(text='◀️', callback_data=f'facility_prev_btn {page}'),
-         InlineKeyboardButton(text='▶️', callback_data=f'facility_next_btn {page}')],
-        [InlineKeyboardButton(text='🔙 Вернуться в меню', callback_data='facility_back_to_menu')],
-        [InlineKeyboardButton(text='➕ Добавить новый объект (только администраторы)', callback_data=f'facility_new_btn')],
+        [InlineKeyboardButton(text='◀️', callback_data=f'facility_prev_btn {attach_to} {page}'),
+         InlineKeyboardButton(text='▶️', callback_data=f'facility_next_btn {attach_to} {page}')],
+        [InlineKeyboardButton(text='🔙 Вернуться к пользователю', callback_data=f'facility_back_to_user {attach_to}')],
+        [InlineKeyboardButton(text='➕ Добавить новый объект (только администраторы)',
+                              callback_data=f'facility_new_btn')],
     ]]
 
     @facility_router.callback_query(F.data.startswith('facility_facility_btn'))
     async def handle_facility_button_callback(callback: CallbackQuery, state: FSMContext):
         bot_logger.info(f'Handling choose_facility facility button callback from user {callback.message.chat.id}')
         data = callback.data.split()
-        facility_id = data[1]
-        page_ = int(data[2])
+        attach_to_ = int(data[1])
+        facility_id = data[2]
+        page_ = int(data[3])
         facility_ = await db.facilities.get_by_id(facility_id=facility_id)
         if facility_:
             facility_info = strs.facility_info(
@@ -114,7 +180,11 @@ async def get_choose_facility_inline_keyboard(user_id: int, page: int = 1) -> In
             )
             await callback.message.edit_text(
                 text=facility_info,
-                reply_markup=await get_facility_info_inline_keyboard(back_page=page_, facility_id=facility_.id)
+                reply_markup=await get_facility_info_inline_keyboard(
+                    attach_to=attach_to_,
+                    back_page=page_,
+                    facility_id=facility_.id
+                )
             )
         else:
             await callback.message.answer(text=strs.facility_search_error)
@@ -135,10 +205,16 @@ async def get_choose_facility_inline_keyboard(user_id: int, page: int = 1) -> In
     async def handle_prev_button_callback(callback: CallbackQuery, state: FSMContext):
         bot_logger.info(f'Handling choose_facility prev button callback from user {callback.message.chat.id}')
         data = callback.data.split()
-        page_ = int(data[1])
+        attach_to_ = int(data[1])
+        page_ = int(data[2])
+        user = await db.users.get_by_id(user_id=attach_to_)
         if page_ != 1:
             await callback.message.edit_reply_markup(
-                reply_markup=await get_choose_facility_inline_keyboard(user_id=user_id, page=page_ - 1)
+                reply_markup=await get_choose_facility_inline_keyboard(
+                    attach_to=attach_to_,
+                    city=user.city.lower().caplitalize(),
+                    page=page_ - 1
+                )
             )
         await callback.answer()
 
@@ -148,18 +224,41 @@ async def get_choose_facility_inline_keyboard(user_id: int, page: int = 1) -> In
         from math import ceil
         max_pages = ceil(len(facilities_) / batch) if facilities_ else 0
         data = callback.data.split()
-        page_ = int(data[1])
+        attach_to_ = int(data[1])
+        page_ = int(data[2])
+        user = await db.users.get_by_id(user_id=attach_to_)
         if page_ != max_pages:
             await callback.message.edit_reply_markup(
-                reply_markup=await get_choose_facility_inline_keyboard(user_id=user_id, page=page_ + 1)
+                reply_markup=await get_choose_facility_inline_keyboard(
+                    attach_to=attach_to_,
+                    city=user.city.lower().capitalize(),
+                    page=page_ + 1
+                )
             )
         await callback.answer()
 
-    @facility_router.callback_query(F.data.startswith('facility_back_to_menu'))
-    async def handle_facility_button_callback(callback: CallbackQuery, state: FSMContext):
-        bot_logger.info(f'Handling facility_back_to_menu facility button callback from user {callback.message.chat.id}')
-        from .general import get_menu_inline_keyboard
-        await callback.message.edit_text(text=strs.menu, reply_markup=await get_menu_inline_keyboard())
+    @facility_router.callback_query(F.data.startswith('facility_back_to_user'))
+    async def handle_back_to_user_button_callback(callback: CallbackQuery, state: FSMContext):
+        bot_logger.info(f'Handling facility_back_to_user facility button callback from user {callback.message.chat.id}')
+        data = callback.data.split()
+        attach_to_ = int(data[1])
+        user = await db.users.get_by_id(user_id=attach_to_)
+        user_info = strs.registration_new_user(
+            fullname=user.fullname, post=user.post, city=user.city,
+            age=user.age, phone=user.phone
+        )
+
+        from .registration import get_attach_facility_keyboard
+        await callback.message.delete()
+        await callback.message.bot.send_photo(
+            chat_id=callback.message.chat.id,
+            photo=FSInputFile(path=cf.BASE + f'/media/{user.id}/images/profile.png'),
+            caption=user_info,
+            reply_markup=await get_attach_facility_keyboard(
+                attach_user_id=attach_to_,
+                city=user.city
+            )
+        )
         await callback.answer()
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -269,11 +368,11 @@ async def handle_get_work_range_state(message: Message, state: FSMContext):
         await message.answer(text=strs.facility_get_work_range_error)
 
 
-@facility_router.message(Private(), Command('facilities'))
+@facility_router.message(Private(), Command('facility'))
 async def handle_my_facilities_command(message: Message, state: FSMContext):
     bot_logger.info(f'Handling command /facilities from user {message.chat.id}')
     user = await db.users.get_by_id(user_id=message.chat.id)
-    if user and user.current_facility_id:
+    if user.current_facility_id:
         facility = await db.facilities.get_by_id(facility_id=user.current_facility_id)
         if facility:
             facility_info = strs.facility_info(
@@ -283,13 +382,8 @@ async def handle_my_facilities_command(message: Message, state: FSMContext):
             )
             await message.answer(
                 text=facility_info,
-                reply_markup=await get_facility_info_inline_keyboard(facility_id=facility.id, back_page=1)
+                reply_markup=await get_facility_location(facility_id=facility.id)
             )
             return
 
-    await message.answer(
-        text=strs.facility_choose_available,
-        reply_markup=await get_choose_facility_inline_keyboard(
-            user_id=message.chat.id,
-        )
-    )
+    await message.answer(text=strs.facility_not_available)

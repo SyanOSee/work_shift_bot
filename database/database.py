@@ -225,6 +225,26 @@ class Database:
                     database_logger.info('No UserModels in a database')
                     return None
 
+        async def get_all_unemployed(self) -> list[UserModel] | None:
+            with self.session_maker() as session:
+                data = session.query(UserModel).filter_by(current_facility_id=None).all()
+                if data:
+                    database_logger.info('Fetched all unemployed users')
+                    return data
+                else:
+                    database_logger.info('No unemployed users in a database')
+                    return None
+
+        async def get_all_admins(self) -> list[UserModel] | None:
+            with self.session_maker() as session:
+                data = session.query(UserModel).filter_by(is_admin=True).all()
+                if data:
+                    database_logger.info('Fetched all admins')
+                    return data
+                else:
+                    database_logger.info('No admins in database')
+                    return None
+
         async def get_by_id(self, user_id: int) -> UserModel | None:
             with self.session_maker() as session:
                 data = session.query(UserModel).filter_by(id=user_id).first()

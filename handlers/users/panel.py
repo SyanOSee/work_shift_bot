@@ -26,7 +26,7 @@ async def handle_get_admin_panel_command(message: Message, state: FSMContext):
     await state.set_state(PanelInfoStates.data_collecting.state)
 
 
-@panel_router.message(Private(), PanelInfoStates.data_collecting, Admin())
+@panel_router.message(Private(), PanelInfoStates.data_collecting)
 async def handle_panel_info_collecting_state(message: Message, state: FSMContext):
     bot_logger.info(f'Handling panel info collecting state from user {message.from_user.id}')
     info = message.text

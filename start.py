@@ -8,9 +8,8 @@ from database import db, LogModel
 
 # Project
 from bot import bot, dispatcher
-from logger import bot_logger, media_logger, database_logger
+from logger import bot_logger, server_logger, database_logger
 from handlers import users_router
-from media_access import start_server
 from panel import start_panel
 
 import config as cf
@@ -34,7 +33,7 @@ async def start_loggers():
     media_model = LogModel()
     media_model.file = f'http://{cf.media_server["host"]}:{cf.media_server["port"]}/get/logs/media_log.log'
 
-    [log.clear_log_file() for log in [bot_logger, media_logger, database_logger]]
+    [log.clear_log_file() for log in [bot_logger, server_logger, database_logger]]
 
     [await db.logs.insert(log=model) for model in [bot_model, database_model, media_model]]
 
@@ -53,7 +52,6 @@ async def start_bot():
 async def run_app():
     await asyncio.gather(
         start_bot(),
-        start_server(),
         start_panel()
     )
 

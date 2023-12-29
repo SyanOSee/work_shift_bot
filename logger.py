@@ -50,4 +50,4 @@ if not os.path.exists(logging_folder):
 
 bot_logger = Logger(name='bot', logging_path=os.path.join(logging_folder, 'bot_log.log'))
 database_logger = Logger(name='database', logging_path=os.path.join(logging_folder, 'database_log.log'))
-media_logger = Logger(name='media', logging_path=os.path.join(logging_folder, 'media_log.log'))
+server_logger = Logger(name='server', logging_path=os.path.join(logging_folder, 'server_log.log'))

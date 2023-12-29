@@ -22,8 +22,7 @@ class UserModel(base):
     age = Column(Integer)
     phone = Column(String)
     photo = Column(String)
-    current_facility_id = Column(String, ForeignKey('Facilities.id', name='facility_id'), default=None)
-    facility = relationship('FacilityModel', back_populates='users')
+    current_facility_id = Column(String, default=None)
     shifts = relationship('ShiftModel', back_populates='user')
     questions = relationship('QuestionModel', back_populates='users')
     reports = relationship('ReportModel', back_populates='users')
@@ -47,8 +46,7 @@ class ShiftModel(base):
     user_geo = Column(String)
     distance_facility_user = Column(Integer)
     user = relationship('UserModel', back_populates='shifts')
-    facility_id = Column(String, ForeignKey('Facilities.id', name='facility_id'))
-    facility = relationship('FacilityModel', back_populates='shifts')
+    facility_id = Column(String)
 
 
 class FacilityModel(base):
@@ -60,10 +58,6 @@ class FacilityModel(base):
     access_get_range = Column(Integer)
     work_start_time = Column(Time)
     work_end_time = Column(Time)
-    # Relationship to shifts (one-to-many)
-    shifts = relationship('ShiftModel', back_populates='facility')
-    # Relationship to users through the association table
-    users = relationship('UserModel', back_populates='facility')
 
 
 class QuestionModel(base):

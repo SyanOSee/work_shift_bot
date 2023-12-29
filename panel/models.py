@@ -28,7 +28,7 @@ class UserView(ModelView, model=UserModel):
         UserModel.is_end_shift_notified: 'Уведомление о конце смены',
     }
     column_details_exclude_list = [
-        UserModel.facility, UserModel.shifts,
+        UserModel.shifts,
         UserModel.questions, UserModel.reports
     ]
     column_list = [
@@ -74,7 +74,6 @@ class ShiftView(ModelView, model=ShiftModel):
         ShiftModel.facility_id: 'ID объекта',
     }
     column_details_exclude_list = [
-        ShiftModel.facility,
         ShiftModel.user
     ]
     column_list = [
@@ -104,10 +103,6 @@ class FacilityView(ModelView, model=FacilityModel):
         FacilityModel.work_start_time: 'Начало работы по МСК',
         FacilityModel.work_end_time: 'Конец работы по МСК',
     }
-    column_details_exclude_list = [
-        FacilityModel.users,
-        FacilityModel.shifts,
-    ]
     column_list = [
         FacilityModel.id,
         FacilityModel.name,

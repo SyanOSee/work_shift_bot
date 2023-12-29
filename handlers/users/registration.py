@@ -15,9 +15,47 @@ class RegistrationStates(StatesGroup):
 
 
 # __buttons__ !DO NOT DELETE!
+async def get_decline_reply_keyboard() -> ReplyKeyboardMarkup:
+    button_list = [
+        [KeyboardButton(text=strs.decline_btn)],
+    ]
+
+    return ReplyKeyboardMarkup(keyboard=button_list, resize_keyboard=True, one_time_keyboard=True)
+
+
+async def get_attach_facility_keyboard(attach_user_id: int, city: str) -> InlineKeyboardMarkup:
+    button_list = [
+        [InlineKeyboardButton(text='Закрепить объект 🏢 ', callback_data=f'attach_facility {attach_user_id} {city}')],
+    ]
+
+    @registration_router.callback_query(F.data.startswith('attach_facility'))
+    async def handle_attach_facility_button_callback(callback: CallbackQuery, state: FSMContext):
+        bot_logger.info(f'Handling attach_facility location button callback from user {callback.message.chat.id}')
+        from .facilities import get_choose_facility_inline_keyboard
+        data = callback.data.split()
+        attach_user_id_, city_ = int(data[1]), data[2]
+        user = await db.users.get_by_id(user_id=attach_user_id_)
+        await callback.message.delete()
+        await callback.message.answer(
+            text=strs.facility_choose_available(city=city_, name=user.fullname),
+            reply_markup=await get_choose_facility_inline_keyboard(attach_to=attach_user_id_, city=city_)
+        )
+
+    return InlineKeyboardMarkup(inline_keyboard=button_list)
 
 
 # __chat__ !DO NOT DELETE!
+@registration_router.message(Command('registration'))
+async def handle_registration_command(message: Message, state: FSMContext):
+    bot_logger.info(f'Handling command /registration from user {message.chat.id}')
+    user = await db.users.get_by_id(user_id=message.chat.id)
+    if not user:
+        await message.answer(text=strs.registration_started, reply_markup=await get_decline_reply_keyboard())
+        await state.set_state(RegistrationStates.get_fullname.state)
+    else:
+        await message.answer(text=strs.registration_already)
+
+
 @registration_router.message(RegistrationStates.get_fullname)
 async def handle_get_fullname_state(message: Message, state: FSMContext):
     bot_logger.info(f'Handling states RegistrationStates.get_fullname from user {message.from_user.id}')
@@ -107,15 +145,33 @@ async def handle_get_photo_state(message: Message, state: FSMContext):
 
         data = await state.get_data()
         user = UserModel()
-        user.id = message.from_user.id
+        user.id = message.chat.id
         user.fullname = data['fullname']
         user.post = data['post']
-        user.city = data['city'].capitalize()
+        user.city = data['city'].lower().capitalize()
         user.age = data['age']
         user.phone = data['phone']
         user.photo = url
         await db.users.insert(user=user)
         await message.answer(text=strs.registration_successfully, reply_markup=ReplyKeyboardRemove())
+
+        admins = await db.users.get_all_admins()
+        if admins:
+            for admin in admins:
+                user_info = strs.registration_new_user(
+                    fullname=data['fullname'], post=data['post'], city=data['city'].lower().capitalize(),
+                    age=data['age'], phone=data['phone']
+                )
+                await message.bot.send_photo(
+                    chat_id=admin.id,
+                    photo=FSInputFile(path=destination),
+                    caption=user_info,
+                    reply_markup=await get_attach_facility_keyboard(
+                        attach_user_id=message.chat.id,
+                        city=data['city'].lower().capitalize()
+                    )
+                )
+
         await state.clear()
     else:
         await message.answer(text=strs.registration_photo_error)
