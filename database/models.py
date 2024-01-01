@@ -27,6 +27,7 @@ class UserModel(base):
     age = Column(Integer)
     phone = Column(String)
     photo = Column(String)
+    complain = Column(String, default='')
     current_facility_id = Column(String, default=None)
     shifts = relationship('ShiftModel', back_populates='user')
     income = Column(Float, default=0)
@@ -34,8 +35,6 @@ class UserModel(base):
     last_month_income = Column(Float, default=0)
     last_month_hours = Column(Float, default=0)
     rate_an_hour = Column(Float, default=0)
-    is_start_shift_notified = Column(Boolean, default=False)
-    is_end_shift_notified = Column(Boolean, default=False)
 
 
 class ShiftModel(base):
@@ -55,8 +54,8 @@ class ShiftModel(base):
 class FacilityModel(base):
     __tablename__ = 'Facilities'
     id = Column(String, primary_key=True, default=get_uuid)
-    name = Column(String)
-    geo = Column(String)
+    name = Column(String, unique=True)
+    geo = Column(String, unique=True)
     city = Column(String)
     access_get_range = Column(Integer)
     work_start_time = Column(Time)

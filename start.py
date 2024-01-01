@@ -8,7 +8,7 @@ from database import db, connect_events, LogModel
 
 # Project
 from bot import bot, dispatcher
-from logger import bot_logger, server_logger, database_logger
+from logger import bot_logger, server_logger, database_logger, background_logger
 from handlers import users_router
 from server import start_panel
 
@@ -30,12 +30,14 @@ async def start_loggers():
     bot_model.file = f'http://{cf.panel_server["host"]}:{cf.panel_server["port"]}/get/logs/bot_log.log'
     database_model = LogModel()
     database_model.file = f'http://{cf.panel_server["host"]}:{cf.panel_server["port"]}/get/logs/database_log.log'
-    media_model = LogModel()
-    media_model.file = f'http://{cf.panel_server["host"]}:{cf.panel_server["port"]}/get/logs/media_log.log'
+    server_model = LogModel()
+    server_model.file = f'http://{cf.panel_server["host"]}:{cf.panel_server["port"]}/get/logs/server_log.log'
+    background_model = LogModel()
+    background_model.file = f'http://{cf.panel_server["host"]}:{cf.panel_server["port"]}/get/logs/background_log.log'
 
-    [log.clear_log_file() for log in [bot_logger, server_logger, database_logger]]
+    [log.clear_log_file() for log in [bot_logger, server_logger, database_logger, background_logger]]
 
-    [await db.logs.insert(log=model) for model in [bot_model, database_model, media_model]]
+    [await db.logs.insert(log=model) for model in [bot_model, database_model, server_model, background_model]]
 
 
 async def start_bot():
@@ -58,35 +60,31 @@ async def run_app():
 
 
 if __name__ == '__main__':
-    from handlers.background import generate_report, notify_start_end_work
-    from handlers.background import check_notification, clear_questions
+    import handlers.background.reports as reports
+    import handlers.background as back
     scheduler = AsyncIOScheduler()
     scheduler.add_job(start_loggers)
     scheduler.add_job(run_app)
     scheduler.add_job(
-        generate_report,
+        reports.generate_week_report,
         trigger=CronTrigger(day_of_week=6),
-        args=(True,)
-
     )
     scheduler.add_job(
-        generate_report,
+        reports.generate_month_report,
         trigger=CronTrigger(day=25),
-        args=(False,)
-
     )
     scheduler.add_job(
-        notify_start_end_work,
+        back.notify_start_end_work,
         'interval',
         minutes=5
     )
     scheduler.add_job(
-        check_notification,
+        back.check_notification,
         'interval',
         seconds=10
     )
     scheduler.add_job(
-        clear_questions,
+        back.clear_questions,
         'interval',
         days=1
     )

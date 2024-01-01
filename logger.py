@@ -51,3 +51,4 @@ if not os.path.exists(logging_folder):
 bot_logger = Logger(name='bot', logging_path=os.path.join(logging_folder, 'bot_log.log'))
 database_logger = Logger(name='database', logging_path=os.path.join(logging_folder, 'database_log.log'))
 server_logger = Logger(name='server', logging_path=os.path.join(logging_folder, 'server_log.log'))
+background_logger = Logger(name='background', logging_path=os.path.join(logging_folder, 'background_log.log'))

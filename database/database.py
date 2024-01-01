@@ -320,14 +320,13 @@ class Database:
                     'age': user.age,
                     'phone': user.phone,
                     'photo': user.photo,
+                    'complain': user.complain,
                     'income': user.income,
                     'hours': user.hours,
                     'last_month_income': user.last_month_income,
                     'last_month_hours': user.last_month_hours,
                     'current_facility_id': user.current_facility_id,
                     'rate_an_hour': user.rate_an_hour,
-                    'is_start_shift_notified': user.is_start_shift_notified,
-                    'is_end_shift_notified': user.is_end_shift_notified
                 })
                 database_logger.warning(f'UserModel {user.id} is updated!')
                 session.commit()
@@ -427,11 +426,26 @@ class Database:
             self.session_maker = session_maker
 
         async def insert(self, facility: FacilityModel):
+            facilities = await self.get_all()
+            if facilities:
+                for db_facility in facilities:
+                    if db_facility.name.lower() == facility.name.lower():
+                        return False
+                    elif db_facility.geo.lower() == facility.geo.lower():
+                        return False
+
             with self.session_maker() as session:
-                session.add(facility)
-                session.commit()
-                database_logger.info(f'FacilityModel is created!')
-                session.close()
+                try:
+                    session.add(facility)
+                    session.commit()
+                    database_logger.info(f'FacilityModel is created!')
+                    session.close()
+                    return True
+                except Exception as e:
+                    database_logger.error(e)
+                    database_logger.warning('Unique value error in Facility insert method!')
+                    session.close()
+                    return False
 
         async def get_all(self) -> list[FacilityModel] | None:
             with self.session_maker() as session:

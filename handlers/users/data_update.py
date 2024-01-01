@@ -194,12 +194,7 @@ async def handle_my_data_command(message: Message, state: FSMContext):
             if user.current_facility_id:
                 facility = await db.facilities.get_by_id(facility_id=user.current_facility_id)
 
-            user_info = strs.data_update_user_info(
-                fullname=user.fullname, post=user.post, city=user.city,
-                age=user.age, phone=user.phone, income=round(user.income, 2),
-                hours=round(user.hours, 2), rate_an_hour=user.rate_an_hour,
-                facility_name=facility.name if facility else 'отсутствует'
-            )
+            user_info = strs.data_update_user_info(user=user, facility_name=facility.name if facility else 'Отсутствует')
             await message.answer_photo(
                 photo=FSInputFile(path=destination, filename='profile.png'),
                 caption=user_info,
@@ -211,10 +206,5 @@ async def handle_my_data_command(message: Message, state: FSMContext):
             if user.current_facility_id:
                 facility = await db.facilities.get_by_id(facility_id=user.current_facility_id)
 
-            user_info = strs.data_update_user_info(
-                fullname=user.fullname, post=user.post, city=user.city,
-                age=user.age, phone=user.phone, income=round(user.income, 2),
-                hours=round(user.hours, 2), rate_an_hour=user.rate_an_hour,
-                facility_name=facility.name if facility else 'отсутствует'
-            )
+            user_info = strs.data_update_user_info(user=user, facility_name=facility.name if facility else 'Отсутствует')
             await message.answer(text=user_info, reply_markup=await get_change_personal_data_inline_keyboard())

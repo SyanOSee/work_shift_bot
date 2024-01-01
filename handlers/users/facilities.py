@@ -13,6 +13,10 @@ class CreateFacilityStates(StatesGroup):
     get_work_range = State()
 
 
+class ComplainStates(StatesGroup):
+    get_complain = State()
+
+
 # __buttons__ !DO NOT DELETE!
 async def get_decline_reply_keyboard() -> ReplyKeyboardMarkup:
     button_list = [
@@ -24,6 +28,7 @@ async def get_decline_reply_keyboard() -> ReplyKeyboardMarkup:
 
 async def get_detach_worker_keyboard(worker_id: int) -> InlineKeyboardMarkup:
     button_list = [
+        [InlineKeyboardButton(text='Написать замечание 👎', callback_data=f'facility_complain {worker_id}')],
         [InlineKeyboardButton(text='Открепить ❌', callback_data=f'facility_detach {worker_id}')]
     ]
 
@@ -44,16 +49,53 @@ async def get_detach_worker_keyboard(worker_id: int) -> InlineKeyboardMarkup:
         # )
 
         await callback.message.delete()
+        await callback.answer()
+
+    @facility_router.callback_query(F.data.startswith('facility_complain'))
+    async def handle_detach_button_callback(callback: CallbackQuery, state: FSMContext):
+        bot_logger.info(f'Handling facility_complain button callback from user {callback.message.chat.id}')
+        data = callback.data.split()
+        worker_id_ = int(data[1])
+
+        await callback.message.answer(text=strs.facility_complain, reply_markup=await get_decline_reply_keyboard())
+        await state.update_data({'id': worker_id_})
+        await state.set_state(ComplainStates.get_complain.state)
+
+        @facility_router.message(ComplainStates.get_complain)
+        async def handle_get_complain_state(message: Message, state: FSMContext):
+            bot_logger.info(f'Handling get_complain_state state from user {message.chat.id}')
+            user_id = (await state.get_data())['id']
+            user = await db.users.get_by_id(user_id=user_id)
+            complain = message.text
+            if complain:
+                user.complain = complain
+                await db.users.update(user=user)
+                await message.answer(text=strs.facility_complain_successfully, reply_markup=ReplyKeyboardRemove())
+                await state.clear()
+            else:
+                await message.answer(text=strs.facility_complain_error)
 
         await callback.answer()
 
     return InlineKeyboardMarkup(inline_keyboard=button_list)
 
 
-async def get_facility_location(facility_id: str) -> InlineKeyboardMarkup:
-    button_list = [
-        [InlineKeyboardButton(text='Местоположение 🗺️', callback_data=f'facil_get_location_btn {facility_id}')],
-    ]
+async def get_facility_location(is_admin: bool, facility_id: str) -> InlineKeyboardMarkup:
+    if is_admin:
+        button_list = [
+            [InlineKeyboardButton(text='Местоположение 🗺️', callback_data=f'facil_get_location_btn {facility_id}')],
+            [InlineKeyboardButton(text='Работники 👷‍♂️', callback_data=f'facility_workers_btn {facility_id}')],
+            [InlineKeyboardButton(
+                text='Отчет по работникам 📃️',
+                url=cf.reports['facility_workers'](
+                    facility_id=facility_id
+                )
+            )],
+        ]
+    else:
+        button_list = [
+            [InlineKeyboardButton(text='Местоположение 🗺️', callback_data=f'facil_get_location_btn {facility_id}')],
+        ]
 
     @facility_router.callback_query(F.data.startswith('facil_get_location_btn'))
     async def handle_location_button_callback(callback: CallbackQuery, state: FSMContext):
@@ -72,6 +114,28 @@ async def get_facility_location(facility_id: str) -> InlineKeyboardMarkup:
             except Exception as e:
                 bot_logger.error(e)
                 bot_logger.warning('Can not send location to user!')
+        await callback.answer()
+
+    @facility_router.callback_query(F.data.startswith('facility_workers_btn'))
+    async def handle_attach_button_callback(callback: CallbackQuery, state: FSMContext):
+        bot_logger.info(f'Handling facility_info attach button callback from user {callback.message.chat.id}')
+        data = callback.data.split()
+        facility_id_ = data[1]
+        facility = await db.facilities.get_by_id(facility_id=facility_id_)
+        workers = await db.users.get_all_with_facility_id(facility_id=facility_id_)
+        if workers:
+            # income, hours, rate_an_hour, facility_name
+            for worker in workers:
+                user_info = strs.data_update_user_info(user=worker, facility_name=facility.name)
+                await callback.message.answer_photo(
+                    photo=FSInputFile(path=cf.BASE + f'/media/{worker.id}/images/profile.png'),
+                    caption=user_info,
+                    reply_markup=await get_detach_worker_keyboard(worker_id=worker.id)
+                )
+        else:
+            await callback.message.answer(
+                text=strs.facility_no_workers_attached
+            )
         await callback.answer()
 
     return InlineKeyboardMarkup(inline_keyboard=button_list)
@@ -106,11 +170,7 @@ async def get_facility_info_inline_keyboard(
         if workers:
             # income, hours, rate_an_hour, facility_name
             for worker in workers:
-                user_info = strs.data_update_user_info(
-                    fullname=worker.fullname, post=worker.post, city=worker.city,
-                    age=worker.age, phone=worker.phone, income=worker.income,
-                    hours=worker.hours, rate_an_hour=worker.rate_an_hour, facility_name=facility.name
-                )
+                user_info = strs.data_update_user_info(user=worker, facility_name=facility.name)
                 await callback.message.answer_photo(
                     photo=FSInputFile(path=cf.BASE + f'/media/{worker.id}/images/profile.png'),
                     caption=user_info,
@@ -308,7 +368,7 @@ async def get_choose_facility_inline_keyboard(
             await callback.message.edit_reply_markup(
                 reply_markup=await get_choose_facility_inline_keyboard(
                     attach_to=attach_to_,
-                    city=user.city,
+                    city=user.city if user else 'all',
                     page=page_ - 1
                 )
             )
@@ -327,7 +387,7 @@ async def get_choose_facility_inline_keyboard(
             await callback.message.edit_reply_markup(
                 reply_markup=await get_choose_facility_inline_keyboard(
                     attach_to=attach_to_,
-                    city=user.city,
+                    city=user.city if user else 'all',
                     page=page_ + 1
                 )
             )
@@ -340,12 +400,7 @@ async def get_choose_facility_inline_keyboard(
         attach_to_ = int(data[1]) if data[1] != 'None' else None
         user = await db.users.get_by_id(user_id=attach_to_)
         facility_ = await db.facilities.get_by_id(facility_id=user.current_facility_id)
-        user_info = strs.data_update_user_info(
-            fullname=user.fullname, post=user.post, city=user.city,
-            age=user.age, phone=user.phone, income=user.income,
-            hours=user.hours, rate_an_hour=user.rate_an_hour,
-            facility_name=facility_.name if facility_ else 'Отсутствует'
-        )
+        user_info = strs.data_update_user_info(user=user, facility_name=facility_.name if facility_ else 'Отсутствует')
 
         from .registration import get_attach_facility_keyboard
         await callback.message.delete()
@@ -445,10 +500,10 @@ async def handle_get_work_range_state(message: Message, state: FSMContext):
         start_time_str, end_time_str = match.groups()
         start_hour, start_minute = [int(item) for item in start_time_str.split(':')]
         end_hour, end_minute = [int(item) for item in end_time_str.split(':')]
-        if not (0 <= start_hour < 24) and not (0 <= start_minute < 60):
+        if not (0 <= start_hour < 24) or not (0 <= start_minute < 60):
             await message.answer(text=strs.facility_get_work_range_error)
             return
-        elif not (0 <= end_hour < 24) and not (0 <= end_minute < 60):
+        elif not (0 <= end_hour < 24) or not (0 <= end_minute < 60):
             await message.answer(text=strs.facility_get_work_range_error)
             return
         start_time_obj = datetime.strptime(start_time_str.strip(), "%H:%M").time()
@@ -464,8 +519,11 @@ async def handle_get_work_range_state(message: Message, state: FSMContext):
         facility.access_get_range = data.get('access_range')
         facility.work_start_time = start_time_obj,
         facility.work_end_time = end_time_obj
-        await db.facilities.insert(facility=facility)
-        await message.answer(text=strs.facility_created, reply_markup=ReplyKeyboardRemove())
+        is_successful = await db.facilities.insert(facility=facility)
+        if is_successful:
+            await message.answer(text=strs.facility_created, reply_markup=ReplyKeyboardRemove())
+        else:
+            await message.answer(text=strs.facility_already_have, reply_markup=ReplyKeyboardRemove())
         await state.clear()
     else:
         await message.answer(text=strs.facility_get_work_range_error)
@@ -485,7 +543,10 @@ async def handle_my_facilities_command(message: Message, state: FSMContext):
             )
             await message.answer(
                 text=facility_info,
-                reply_markup=await get_facility_location(facility_id=facility.id)
+                reply_markup=await get_facility_location(
+                    is_admin=user.is_admin,
+                    facility_id=facility.id
+                )
             )
             return
 
