@@ -12,7 +12,7 @@ async def get_menu_inline_keyboard() -> InlineKeyboardMarkup:
     button_list = [
         [InlineKeyboardButton(text='Начать смену 🟢', callback_data='start_shift_btn')],
         [InlineKeyboardButton(text='Закрыть смену ⛔', callback_data='end_shift_btn')],
-        [InlineKeyboardButton(text='Объекты 🏢', callback_data='facilities_btn'),
+        [InlineKeyboardButton(text='Объект 🏢', callback_data='facilities_btn'),
          InlineKeyboardButton(text='Мои данные 🔎', callback_data='my_data_btn')],
         [InlineKeyboardButton(text='Помощь ❓', callback_data='help_btn')]
     ]

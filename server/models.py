@@ -19,12 +19,12 @@ class UserView(ModelView, model=UserModel):
         UserModel.phone: 'Телефон',
         UserModel.photo: 'Фото',
         UserModel.current_facility_id: 'ID текущего объекта',
-        UserModel.complain: 'Замечание',
         UserModel.income: 'Доход',
         UserModel.hours: 'Часы',
         UserModel.last_month_income: 'Доход за прошлый месяц',
         UserModel.last_month_hours: 'Отработанные час за прошлый месяц',
         UserModel.rate_an_hour: 'Ставка за час',
+        UserModel.complain: 'Замечание',
     }
     column_details_exclude_list = [
         UserModel.shifts,
@@ -44,6 +44,7 @@ class UserView(ModelView, model=UserModel):
         UserModel.last_month_income,
         UserModel.last_month_hours,
         UserModel.rate_an_hour,
+        UserModel.complain
     ]
     column_sortable_list = column_list
     column_searchable_list = [
