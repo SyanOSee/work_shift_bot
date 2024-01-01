@@ -75,8 +75,7 @@ if __name__ == '__main__':
     )
     scheduler.add_job(
         back.notify_start_end_work,
-        'interval',
-        minutes=5
+        trigger=CronTrigger(minute=1)
     )
     scheduler.add_job(
         back.check_notification,

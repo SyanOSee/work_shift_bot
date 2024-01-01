@@ -45,7 +45,8 @@ async def handle_start_shift_command(message: Message, state: FSMContext):
         if user.current_facility_id:
             facility = await db.facilities.get_by_id(facility_id=user.current_facility_id)
             if facility:
-                await message.answer(text=strs.shift_ask_geo(dist_range=facility.access_get_range), reply_markup=await get_geo_reply_keyboard())
+                await message.answer(text=strs.shift_ask_geo(dist_range=facility.access_get_range),
+                                     reply_markup=await get_geo_reply_keyboard())
                 await state.set_state(StartShiftStates.get_geo.state)
             else:
                 await message.answer(text=strs.shift_no_such_facility)
@@ -176,8 +177,8 @@ async def handle_end_shift_command(message: Message, state: FSMContext):
                 if shift_.end_time is None:
                     from datetime import datetime, timedelta, timezone
                     from handlers.utils import format_timedelta_to_hours_minutes, convert_time_to_float
-                    shift_.end_time = datetime.now(timezone(timedelta(hours=3)))
-                    time_difference = shift_.end_time - (shift_.start_time.replace(tzinfo=timezone(timedelta(hours=3))))
+                    shift_.end_time = datetime.now(timezone(timedelta(hours=3))) + timedelta(hours=3)
+                    time_difference = shift_.end_time - (shift_.start_time.replace(tzinfo=timezone(timedelta(hours=3))) + timedelta(hours=3))
                     total_time = await format_timedelta_to_hours_minutes(timedelta_obj=time_difference)
                     shift_.total_time = total_time
                     user.hours = round(user.hours + await convert_time_to_float(time_str=total_time), 2)
@@ -185,8 +186,10 @@ async def handle_end_shift_command(message: Message, state: FSMContext):
                     await db.users.update(user=user)
                     await db.shifts.update(shift=shift_)
                     await message.answer(text=strs.shift_successfully_ended(
-                        start_time=str(shift_.start_time).split('.')[0], end_time=str(shift_.end_time).split('.')[0],
-                        total=shift_.total_time, income=round(await convert_time_to_float(time_str=total_time))
+                        start_time=str(shift_.start_time).split('.')[0],
+                        end_time=str(shift_.end_time - timedelta(hours=3)).split('.')[0],
+                        total=shift_.total_time, income=round(await convert_time_to_float(time_str=total_time)),
+                        per_an_hour=user.rate_an_hour
                     ))
                     return
             await message.answer(text=strs.shift_no_opened_shifts)

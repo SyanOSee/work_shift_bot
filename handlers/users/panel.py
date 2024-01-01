@@ -13,7 +13,7 @@ class PanelInfoStates(StatesGroup):
 async def get_export_inline_keyboard() -> InlineKeyboardMarkup:
     button_list = [
         [InlineKeyboardButton(text='Недельный отчет 📅', url=cf.reports['weekly'])],
-        [InlineKeyboardButton(text='Месячный отчет 🗓️', url=cf.reports['mothly'])],
+        [InlineKeyboardButton(text='Месячный отчет 🗓️', url=cf.reports['monthly'])],
         [InlineKeyboardButton(text='Отчет всех пользователей 👷🏻‍♂️', url=cf.reports['all_users'])],
     ]
 

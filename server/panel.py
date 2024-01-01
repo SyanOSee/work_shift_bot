@@ -1,6 +1,6 @@
 # Third-party
 from fastapi import FastAPI, Request, HTTPException, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.security import HTTPBasic
 from sqladmin import Admin
 from starlette.middleware.sessions import SessionMiddleware
@@ -8,6 +8,8 @@ from starlette.responses import RedirectResponse
 
 # Standard
 import os
+import io
+import zipfile
 
 # Project
 from logger import server_logger
@@ -19,7 +21,6 @@ from .models import UserView, ShiftView, FacilityView, QuestionView, ReportView,
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key=cf.panel_server['secret_key'])
 security = HTTPBasic()
-
 
 admin = Admin(app=app, engine=db.engine)
 [admin.add_view(view) for view in [
@@ -47,19 +48,38 @@ def get_report_path(report_name: str) -> str:
 
 
 def get_facility_user_report_path(facility_id: str) -> str:
-    return os.path.join('media/facilities', facility_id, 'users.xlsx')
+    return os.path.join(cf.BASE, 'media\\reports\\facilities', facility_id, 'users_report.xlsx')
+
+
+def get_report_directory(report_name: str) -> str:
+    return os.path.join(cf.BASE, 'media/reports', report_name)
+
+
+def create_zip(directory_path: str) -> bytes:
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for root, dirs, files in os.walk(directory_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                zip_file.write(file_path, os.path.relpath(file_path, directory_path))
+    zip_buffer.seek(0)
+    return zip_buffer.read()
 
 
 @app.get("/reports/weekly")
 async def weekly_reports_handler():
-    report_path = get_report_path('weekly_report.xlsx')
-    return FileResponse(report_path)
+    report_directory = get_report_directory('weekly')
+    zip_data = create_zip(report_directory)
+    return StreamingResponse(io.BytesIO(zip_data), media_type="application/zip",
+                             headers={"Content-Disposition": "attachment; filename=weekly_reports.zip"})
 
 
 @app.get("/reports/monthly")
 async def monthly_reports_handler():
-    report_path = get_report_path('monthly_report.xlsx')
-    return FileResponse(report_path)
+    report_directory = get_report_directory('monthly')
+    zip_data = create_zip(report_directory)
+    return StreamingResponse(io.BytesIO(zip_data), media_type="application/zip",
+                             headers={"Content-Disposition": "attachment; filename=monthly_reports.zip"})
 
 
 @app.get("/reports/users")
@@ -69,7 +89,7 @@ async def users_reports_handler():
     return FileResponse(report_path)
 
 
-@app.get("/facilities/{facility_id}/users")
+@app.get("/reports/facilities/{facility_id}/users")
 async def facility_user_report_handler(facility_id: str):
     await reports.generate_facility_users_report(facility_id=facility_id)
     report_path = get_facility_user_report_path(facility_id)

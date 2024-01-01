@@ -32,7 +32,7 @@ database = {
 }
 
 reports = {
-    'facility_workers': lambda facility_id: panel_server['url'] + f'/reports/facilities/{facility_id}/users.xlsx',
+    'facility_workers': lambda facility_id: panel_server['url'] + f'/reports/facilities/{facility_id}/users',
     'weekly': panel_server['url'] + '/reports/weekly',
     'monthly': panel_server['url'] + '/reports/monthly',
     'all_users': panel_server['url'] + '/reports/users'
